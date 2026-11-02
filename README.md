@@ -20,7 +20,14 @@ Deux garde-fous l'appliquent : le `.gitignore` exclut `data/`, et une action Git
 
 ### Chargement des fichiers RH
 
-_À rédiger à l'étape 8 : format de fichier, stage, `COPY INTO`, `PURGE = TRUE` (règle R3)._
+Les deux fichiers RH entrent dans `RAW` en trois temps, toujours avec le rôle des outils (`TRANSFORMER`) : `snowflake/rh/chargement_rh_1_preparer.sql`, le dépôt des CSV sur le stage depuis Snowsight, puis `snowflake/rh/chargement_rh_2_copier.sql`.
+
+- Le **format de fichier** (`NYC_TAXI.RAW.CSV_RH`) dit à Snowflake comment lire un CSV : une ligne d'en-tête à sauter, des champs éventuellement entre guillemets, aucun espace retiré (`RAW` est une copie fidèle du fichier).
+- Le **stage** (`NYC_TAXI.RAW.RH_STAGE`) est l'espace de dépôt interne où l'on pose les fichiers avant de les copier. Il est chiffré côté serveur et dispose d'une table de répertoire, ce qui permet le dépôt et la consultation depuis Snowsight.
+- **`COPY INTO`** lit chaque fichier du stage, convertit les colonnes (`$1`, `$2`…) vers les types des tables, ajoute le nom du fichier et l'heure de chargement (`METADATA$FILENAME`, `METADATA$START_SCAN_TIME`), et s'arrête à la première erreur (`ON_ERROR = ABORT_STATEMENT`). Il garde l'historique des fichiers chargés : relancé, il ne charge rien de plus.
+- **`PURGE = TRUE`** efface le fichier du stage une fois copié. C'est la règle R3 du contrat : le fichier du personnel ne séjourne pas dans l'entrepôt au-delà du chargement ; seules les tables, soumises aux règles d'accès, le conservent.
+
+Chargement réussi quand `RAW.DRIVERS` compte 400 lignes, `RAW.DRIVER_SHIFTS` 25 951, et que `LIST @NYC_TAXI.RAW.RH_STAGE;` ne renvoie rien.
 
 ### Protections en place
 
@@ -32,7 +39,7 @@ _À compléter : quel script, avec quel rôle, dans quel ordre, et comment véri
 
 ### Choix et limites
 
-_À compléter._
+- **Script de copie fourni rendu rejouable.** `chargement_rh_2_copier.sql` désignait les fichiers par `FILES = ('drivers.csv')`. Combiné à `PURGE = TRUE`, il échouait à la relance (« Remote file was not found ») : le fichier purgé est exigé nommément. Remplacé par `PATTERN = '.*drivers[.]csv'`, qui charge ce qui correspond et traite zéro fichier sans erreur. La vérification finale tient en une requête (`LIST ->> SELECT`), lisible d'un coup dans Snowsight.
 
 ### Écarts avec le contrat
 
