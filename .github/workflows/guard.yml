@@ -1,0 +1,28 @@
+name: guard
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan history for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fail if any HR CSV is tracked
+        run: |
+          tracked="$(git ls-files 'data/*.csv')"
+          if [ -n "$tracked" ]; then
+            echo "::error::data/*.csv must never be tracked:"
+            echo "$tracked"
+            exit 1
+          fi
+          echo "No data/*.csv tracked."
