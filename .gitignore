@@ -1,0 +1,15 @@
+# Fichiers du personnel : données personnelles, jamais sur un dépôt public (justification dans README.md)
+data/
+
+# Secrets : ne jamais versionner (mots de passe, clés, configuration de la CLI snow)
+.env
+*.p8
+*.pem
+config.toml
+
+# Système
+.DS_Store
+
+# Fichiers de travail de l'assistant IA : pas des livrables
+CLAUDE.md
+progress.md
