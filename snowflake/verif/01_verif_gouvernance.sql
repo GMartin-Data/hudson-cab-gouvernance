@@ -47,22 +47,26 @@ SHOW ROLES LIKE 'GOUVERNANCE'                                        -- $5
                (SELECT COUNT(*) FROM $2
                 WHERE "name" IN ('SENSIBILITE', 'DONNEE_PERSONNELLE', 'DUREE_CONSERVATION'))
         UNION ALL
-        SELECT 'Tag SENSIBILITE : valeurs permises public, interne, confidentiel', 1,
+        -- allowed_values est un tableau JSON ( ["public","interne","confidentiel"] ) : on le parse et on exige
+        -- exactement les valeurs du contrat, ni une de plus, ni une approchante, quel que soit l'ordre.
+        SELECT 'Tag SENSIBILITE : exactement les valeurs public, interne, confidentiel', 1,
                (SELECT COUNT(*) FROM $2
                 WHERE "name" = 'SENSIBILITE'
-                  AND "allowed_values" LIKE '%public%'
-                  AND "allowed_values" LIKE '%interne%'
-                  AND "allowed_values" LIKE '%confidentiel%')
+                  AND ARRAY_SIZE(PARSE_JSON("allowed_values")) = 3
+                  AND ARRAY_CONTAINS('public'::VARIANT,       PARSE_JSON("allowed_values"))
+                  AND ARRAY_CONTAINS('interne'::VARIANT,      PARSE_JSON("allowed_values"))
+                  AND ARRAY_CONTAINS('confidentiel'::VARIANT, PARSE_JSON("allowed_values")))
         UNION ALL
-        SELECT 'Tag DONNEE_PERSONNELLE : les six valeurs permises du contrat', 1,
+        SELECT 'Tag DONNEE_PERSONNELLE : exactement les six valeurs du contrat', 1,
                (SELECT COUNT(*) FROM $2
                 WHERE "name" = 'DONNEE_PERSONNELLE'
-                  AND "allowed_values" LIKE '%nom%'
-                  AND "allowed_values" LIKE '%email%'
-                  AND "allowed_values" LIKE '%telephone%'
-                  AND "allowed_values" LIKE '%date_naissance%'
-                  AND "allowed_values" LIKE '%identifiant_officiel%'
-                  AND "allowed_values" LIKE '%identifiant_interne%')
+                  AND ARRAY_SIZE(PARSE_JSON("allowed_values")) = 6
+                  AND ARRAY_CONTAINS('nom'::VARIANT,                  PARSE_JSON("allowed_values"))
+                  AND ARRAY_CONTAINS('email'::VARIANT,                PARSE_JSON("allowed_values"))
+                  AND ARRAY_CONTAINS('telephone'::VARIANT,            PARSE_JSON("allowed_values"))
+                  AND ARRAY_CONTAINS('date_naissance'::VARIANT,       PARSE_JSON("allowed_values"))
+                  AND ARRAY_CONTAINS('identifiant_officiel'::VARIANT, PARSE_JSON("allowed_values"))
+                  AND ARRAY_CONTAINS('identifiant_interne'::VARIANT,  PARSE_JSON("allowed_values")))
         UNION ALL
         SELECT 'Tag DUREE_CONSERVATION : texte libre (aucune liste de valeurs)', 1,
                (SELECT COUNT(*) FROM $2
