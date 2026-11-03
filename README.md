@@ -40,6 +40,7 @@ _À compléter : quel script, avec quel rôle, dans quel ordre, et comment véri
 ### Choix et limites
 
 - **Script de copie fourni rendu rejouable.** `chargement_rh_2_copier.sql` désignait les fichiers par `FILES = ('drivers.csv')`. Combiné à `PURGE = TRUE`, il échouait à la relance (« Remote file was not found ») : le fichier purgé est exigé nommément. Remplacé par `PATTERN = '.*drivers[.]csv'`, qui charge ce qui correspond et traite zéro fichier sans erreur. La vérification finale tient en une requête (`LIST ->> SELECT`), lisible d'un coup dans Snowsight.
+- **Le staging fourni dédoublonne en silence.** `STG_RH__DRIVER_SHIFTS` ne garde qu'une ligne par `shift_id` (`QUALIFY ROW_NUMBER() … = 1`) : 25 951 lignes dans `RAW`, 25 933 dans la vue. Une vue de staging devrait rester 1:1 avec sa source ; ici une décision (quelle version d'un service garder) est prise sans trace. Vérifié : les 18 lignes en trop sont des doublons stricts (mêmes valeurs dans toutes les colonnes), donc le choix non déterministe de la ligne conservée est sans effet sur les résultats. Le SQL fourni n'est pas modifié ; en contrepartie, la règle de qualité `service_unique` (jour 3) mesure les doublons dans **`RAW`**, pas dans la vue, qui les a déjà fait disparaître.
 
 ### Écarts avec le contrat
 
