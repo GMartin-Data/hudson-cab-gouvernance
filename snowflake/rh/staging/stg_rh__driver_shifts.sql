@@ -17,3 +17,7 @@ SELECT
     _loaded_at                  AS loaded_at
 FROM NYC_TAXI.RAW.DRIVER_SHIFTS
 QUALIFY ROW_NUMBER() OVER (PARTITION BY shift_id ORDER BY _loaded_at) = 1;
+
+-- Vérifier : attendu 25 933
+SELECT COUNT(*)
+  FROM NYC_TAXI.STAGING.STG_RH__DRIVER_SHIFTS;
