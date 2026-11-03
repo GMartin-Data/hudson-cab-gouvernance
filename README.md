@@ -31,11 +31,40 @@ Chargement réussi quand `RAW.DRIVERS` compte 400 lignes, `RAW.DRIVER_SHIFTS` 25
 
 ### Protections en place
 
-_À compléter au fil des trois jours : catalogue et tags, masquage, accès par ligne, purge, qualité, audit._
+| Protection | Ce qu'elle fait | Où | Preuve |
+|---|---|---|---|
+| Fichiers du personnel hors du dépôt | `data/` ignoré par git ; la CI échoue si un `data/*.csv` est suivi ou si un secret est détecté | `.gitignore`, `.github/workflows/guard.yml` | `git ls-files 'data/*.csv'` vide ; run `guard` vert |
+| Stage vidé après chargement (R3) | `PURGE = TRUE` retire le fichier du stage une fois copié | `snowflake/rh/chargement_rh_2_copier.sql` | `LIST @NYC_TAXI.RAW.RH_STAGE` vide |
+| Séparation des rôles | `TRANSFORMER` possède les données et ne gouverne pas ; `GOUVERNANCE` écrit les règles et ne lit pas les données (aucun `SELECT`) ; `ACCOUNTADMIN` installe et se retire | `snowflake/gouvernance/01_gouvernance.sql` | `snowflake/verif/01_verif_gouvernance.sql` : 14 contrôles OK |
+| Catalogue | description de chaque table et de chaque colonne de `DIM_DEPOT`, `DIM_DRIVER`, `RAW.DRIVERS` ; tags `SENSIBILITE` et `DUREE_CONSERVATION` sur les cinq tables | `snowflake/rh/catalogue/` | `snowflake/verif/02_verif_catalogue.sql` : 11 contrôles OK |
+| Colonnes personnelles identifiées | tag `DONNEE_PERSONNELLE` sur 17 colonnes, avec sa nature (`nom`, `email`, `telephone`, `date_naissance`, `identifiant_officiel`, `identifiant_interne`), d'après l'inventaire de `docs/REGISTRE.md` | `snowflake/rh/catalogue/` | même script ; le masquage du jour 2 s'attachera à ce tag |
+| Masquage par rôle | _jour 2_ | | |
+| Accès par ligne (dépôt) | _jour 2_ | | |
+| Purge et conservation (R1, R2) | _jour 3_ | | |
+| Qualité | _jour 3_ | | |
+| Audit | _jour 3_ | | |
 
 ### Ordre d'exécution des scripts
 
-_À compléter : quel script, avec quel rôle, dans quel ordre, et comment vérifier que les règles survivent au pipeline._
+Chaque script commence par le rôle qui doit l'exécuter et finit par une requête de vérification : si elle n'affiche rien, une instruction a échoué plus haut. Tous sont rejouables.
+
+| # | Script | Rôle | C'est bon quand |
+|---|---|---|---|
+| 1 | `snowflake/00_installation.sql` (fourni) | `ACCOUNTADMIN` | schémas `RAW`, `STAGING`, `MARTS` ; rôle `TRANSFORMER` |
+| 2 | `snowflake/rh/chargement_rh_1_preparer.sql` (fourni) | `TRANSFORMER` | stage `RH_STAGE`, format `CSV_RH`, deux tables `RAW` |
+| 3 | dépôt de `data/drivers.csv` et `data/driver_shifts.csv` sur `RH_STAGE` depuis Snowsight | `TRANSFORMER` | `LIST @NYC_TAXI.RAW.RH_STAGE` : 2 fichiers |
+| 4 | `snowflake/rh/chargement_rh_2_copier.sql` (fourni, corrigé) | `TRANSFORMER` | `400 \| 25951 \| 0` ; relancé : même ligne |
+| 5 | `snowflake/rh/00_tables_rh.sql` (fourni) | `TRANSFORMER` | 3 tables dans `MARTS` |
+| 6 | `snowflake/rh/staging/stg_rh__drivers.sql`, `stg_rh__driver_shifts.sql` (fournis) | `TRANSFORMER` | 400 ; 25 933 |
+| 7 | `snowflake/rh/marts/dim_depot.sql`, `dim_driver.sql`, `mart_driver_monthly.sql` (fournis) | `TRANSFORMER` | 3 ; 400 ; 914 |
+| 8 | `snowflake/verif/01_verif_gouvernance.sql` | `ACCOUNTADMIN` | erreur attendue avant l'étape 9 (le rôle n'existe pas) |
+| 9 | `snowflake/gouvernance/01_gouvernance.sql` | `ACCOUNTADMIN` puis `GOUVERNANCE` | `SHOW TAGS` : 3 lignes ; puis `verif/01` : 14 OK |
+| 10 | `snowflake/verif/02_verif_catalogue.sql` | `TRANSFORMER` | des KO attendus avant l'étape 11 |
+| 11 | `snowflake/rh/catalogue/catalogue_*.sql` (cinq fichiers, ordre indifférent) | `TRANSFORMER` | `verif/02` : 11 OK |
+
+Les règles doivent survivre au pipeline : les scripts de `marts/` remplissent les tables par `INSERT OVERWRITE` sans les recréer, donc les descriptions et les tags posés à l'étape 11 restent en place après une relance des étapes 5 à 7. Vérification : relancer 5 à 7, puis `verif/02`. Fait le 2026-11-03 : après relance des trois scripts de `marts/`, `verif/02` affiche toujours 11 OK.
+
+Captures Snowsight des tags de `DIM_DRIVER` : `docs/capture_tags_dim_driver.png` (tags et description de la table, descriptions de colonnes) et `docs/capture_tags_colonnes_dim_driver.png` (tag `DONNEE_PERSONNELLE` colonne par colonne).
 
 ### Choix et limites
 
