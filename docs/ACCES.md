@@ -17,27 +17,29 @@ Le propriétaire d'un objet est le rôle qui l'a créé.
 
 | Objet | Propriétaire |
 |---|---|
-| Tables de `RAW` et de `MARTS` | le rôle des outils |
-| Schéma `GOUVERNANCE` | |
-| Tags | |
-| Politiques de masquage | |
-| Politique d'accès par ligne | |
-| Table `ACCES_DEPOT` | |
-| Table `QUALITE_RESULTATS` | |
-| Vue `V_CATALOGUE` | |
+| Tables de `RAW` et de `MARTS`, vues de `STAGING`, stage et format de fichier | `TRANSFORMER` (le rôle des outils, qui a exécuté les SQL fournis) |
+| Schéma `GOUVERNANCE` | `GOUVERNANCE` (créé par `ACCOUNTADMIN`, propriété cédée par `GRANT OWNERSHIP … COPY CURRENT GRANTS`, `01_gouvernance.sql`) |
+| Tags `SENSIBILITE`, `DONNEE_PERSONNELLE`, `DUREE_CONSERVATION` | `GOUVERNANCE` (créés par lui dans son schéma) |
+| Politiques de masquage | `GOUVERNANCE` — jour 2 |
+| Politique d'accès par ligne | `GOUVERNANCE` — jour 2 |
+| Table `ACCES_DEPOT` | jour 2 |
+| Table `QUALITE_RESULTATS` | `GOUVERNANCE` (créée par lui dans son schéma) |
+| Vue `V_CATALOGUE` | jour 3 |
 
 ### Qui fait quoi, avec quel droit
 
 | Action | Rôle qui la fait | Privilège nécessaire | Accordé par |
 |---|---|---|---|
-| Créer un tag | `GOUVERNANCE` | `CREATE TAG` sur le schéma, ou en être propriétaire | `ACCOUNTADMIN` |
-| Poser un tag sur une colonne de `DIM_DRIVER` | | | |
-| Créer une politique de masquage | | | |
-| Attacher une politique de masquage à un tag | | | |
-| Ajouter une politique d'accès par ligne à une table | | | |
-| Écrire une ligne dans `QUALITE_RESULTATS` | | | |
-| Lire `DIM_DRIVER` | | | |
-| Exécuter une requête | chaque rôle | | |
+| Créer un tag | `GOUVERNANCE` | propriétaire du schéma `GOUVERNANCE` (la propriété vaut tous les droits sur le schéma, `CREATE TAG` compris) | `ACCOUNTADMIN` (cession de propriété) |
+| Voir les schémas où attacher des règles, sans lire les données | `GOUVERNANCE` | `USAGE` sur la base `NYC_TAXI` et sur les schémas `RAW` et `MARTS` (aucun `SELECT`) | `ACCOUNTADMIN` |
+| Poser un tag sur une colonne de `DIM_DRIVER` | `TRANSFORMER` | propriétaire de la table + `USAGE` sur le schéma `GOUVERNANCE` + `APPLY` sur le tag | `GOUVERNANCE` (propriétaire du tag) |
+| Créer une politique de masquage | `GOUVERNANCE` | propriétaire du schéma `GOUVERNANCE` | `ACCOUNTADMIN` (cession de propriété) — jour 2 |
+| Attacher une politique de masquage à un tag | `GOUVERNANCE` | `APPLY MASKING POLICY` sur le compte (la politique s'appliquera à des colonnes de tables qu'il ne possède pas) | `ACCOUNTADMIN` — jour 2 |
+| Ajouter une politique d'accès par ligne à une table | `GOUVERNANCE` | `APPLY ROW ACCESS POLICY` sur le compte | `ACCOUNTADMIN` — jour 2 |
+| Écrire une ligne dans `QUALITE_RESULTATS` | `TRANSFORMER` | `USAGE` sur le schéma `GOUVERNANCE` + `INSERT` (et `SELECT` pour relire) sur la table | `GOUVERNANCE` (propriétaire de la table) |
+| Créer la vue du catalogue dans `GOUVERNANCE` | `TRANSFORMER` | `CREATE VIEW` sur le schéma `GOUVERNANCE` | `GOUVERNANCE` — jour 3 |
+| Lire `DIM_DRIVER` | `TRANSFORMER` (propriétaire) ; rôles métier au jour 2 | `USAGE` sur base et schéma + `SELECT` sur la table | `TRANSFORMER` (propriétaire) — jour 2 |
+| Exécuter une requête | chaque rôle | `USAGE` sur le warehouse `NYC_TAXI_WH` | `ACCOUNTADMIN` |
 
 ### Ce que cette carte permet à un rôle de défaire
 
