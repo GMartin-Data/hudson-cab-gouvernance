@@ -16,7 +16,7 @@ Documents de référence :
 
 `data/` entre dans `.gitignore` pour le prémunir d'un versioning qui **exposerait des données personnelles** (même si ici, dans le cadre de ce projet pédagogique, elles sont *fictives*) sur un dépôt **public**. Rappelons que cette précaution initiale protège définitivement d'un leak qui, même après suppression a posteriori, en guise de correctif, verrait tout de même ces données demeurer dans l'historique, ce qui est tout à fait inacceptable.
 
-Deux garde-fous l'appliquent : le `.gitignore` exclut `data/`, et une action GitHub (`.github/workflows/guard.yml`) fait échouer tout push ou pull request si un `data/*.csv` est suivi par git ou si un secret est détecté (gitleaks).
+Deux garde-fous l'appliquent : le `.gitignore` exclut `data/`, et une action GitHub (`.github/workflows/guard.yml`) fait échouer tout push ou pull request si un fichier de `data/`, quel que soit son format, est suivi par git ou si un secret est détecté (gitleaks).
 
 ### Chargement des fichiers RH
 
@@ -33,9 +33,9 @@ Chargement réussi quand `RAW.DRIVERS` compte 400 lignes, `RAW.DRIVER_SHIFTS` 25
 
 | Protection | Ce qu'elle fait | Où | Preuve |
 |---|---|---|---|
-| Fichiers du personnel hors du dépôt | `data/` ignoré par git ; la CI échoue si un `data/*.csv` est suivi ou si un secret est détecté | `.gitignore`, `.github/workflows/guard.yml` | `git ls-files 'data/*.csv'` vide ; run `guard` vert |
+| Fichiers du personnel hors du dépôt | `data/` ignoré par git ; la CI échoue si un fichier de `data/` est suivi ou si un secret est détecté | `.gitignore`, `.github/workflows/guard.yml` | `git ls-files data/` vide ; run `guard` vert |
 | Stage vidé après chargement (R3) | `PURGE = TRUE` retire le fichier du stage une fois copié | `snowflake/rh/chargement_rh_2_copier.sql` | `LIST @NYC_TAXI.RAW.RH_STAGE` vide |
-| Séparation des rôles | `TRANSFORMER` possède les données et ne gouverne pas ; `GOUVERNANCE` écrit les règles et ne lit pas les données (aucun `SELECT`) ; `ACCOUNTADMIN` installe et se retire | `snowflake/gouvernance/01_gouvernance.sql` | `snowflake/verif/01_verif_gouvernance.sql` : 14 contrôles OK |
+| Séparation des rôles | `TRANSFORMER` possède les données et ne gouverne pas ; `GOUVERNANCE` écrit les règles et ne lit pas les données (aucun `SELECT`) ; `ACCOUNTADMIN` installe et se retire | `snowflake/gouvernance/01_gouvernance.sql` | `snowflake/verif/01_verif_gouvernance.sql` : 15 contrôles OK |
 | Catalogue | description de chaque table et de chaque colonne de `DIM_DEPOT`, `DIM_DRIVER`, `RAW.DRIVERS` ; tags `SENSIBILITE` et `DUREE_CONSERVATION` sur les cinq tables | `snowflake/rh/catalogue/` | `snowflake/verif/02_verif_catalogue.sql` : 11 contrôles OK |
 | Colonnes personnelles identifiées | tag `DONNEE_PERSONNELLE` sur 17 colonnes, avec sa nature (`nom`, `email`, `telephone`, `date_naissance`, `identifiant_officiel`, `identifiant_interne`), d'après l'inventaire de `docs/REGISTRE.md` | `snowflake/rh/catalogue/` | même script ; le masquage du jour 2 s'attachera à ce tag |
 | Masquage par rôle | _jour 2_ | | |
@@ -58,7 +58,7 @@ Chaque script commence par le rôle qui doit l'exécuter et finit par une requê
 | 6 | `snowflake/rh/staging/stg_rh__drivers.sql`, `stg_rh__driver_shifts.sql` (fournis) | `TRANSFORMER` | 400 ; 25 933 |
 | 7 | `snowflake/rh/marts/dim_depot.sql`, `dim_driver.sql`, `mart_driver_monthly.sql` (fournis) | `TRANSFORMER` | 3 ; 400 ; 914 |
 | 8 | `snowflake/verif/01_verif_gouvernance.sql` | `ACCOUNTADMIN` | erreur attendue avant l'étape 9 (le rôle n'existe pas) |
-| 9 | `snowflake/gouvernance/01_gouvernance.sql` | `ACCOUNTADMIN` puis `GOUVERNANCE` | `SHOW TAGS` : 3 lignes ; puis `verif/01` : 14 OK |
+| 9 | `snowflake/gouvernance/01_gouvernance.sql` | `ACCOUNTADMIN` puis `GOUVERNANCE` | `SHOW TAGS` : 3 lignes ; puis `verif/01` : 15 OK |
 | 10 | `snowflake/verif/02_verif_catalogue.sql` | `TRANSFORMER` | des KO attendus avant l'étape 11 |
 | 11 | `snowflake/rh/catalogue/catalogue_*.sql` (cinq fichiers, ordre indifférent) | `TRANSFORMER` | `verif/02` : 11 OK |
 

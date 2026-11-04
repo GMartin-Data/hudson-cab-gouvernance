@@ -17,12 +17,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Fail if any HR CSV is tracked
+      - name: Fail if any file under data/ is tracked
         run: |
-          tracked="$(git ls-files 'data/*.csv')"
+          tracked="$(git ls-files data/)"
           if [ -n "$tracked" ]; then
-            echo "::error::data/*.csv must never be tracked:"
+            echo "::error::nothing under data/ may ever be tracked:"
             echo "$tracked"
             exit 1
           fi
-          echo "No data/*.csv tracked."
+          echo "Nothing tracked under data/."
