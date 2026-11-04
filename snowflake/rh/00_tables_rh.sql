@@ -38,3 +38,6 @@ CREATE TABLE IF NOT EXISTS NYC_TAXI.MARTS.DIM_DEPOT (
     ouvert_en            INTEGER,
     nb_places            INTEGER
 );
+
+-- Vérifier : attendu 3 lignes, rows = 0, owner = TRANSFORMER
+SHOW TABLES IN SCHEMA NYC_TAXI.MARTS;

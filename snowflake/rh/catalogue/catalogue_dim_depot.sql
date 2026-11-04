@@ -1,12 +1,15 @@
--- MODÈLE : la fiche de catalogue complète d'une table, écrite en SQL.
--- À exécuter avec le rôle des outils, propriétaire de la table, une fois le schéma GOUVERNANCE et les
--- trois tags créés et le droit de les poser accordé (guide, jour 1, étape 10).
--- Écrivez sur ce modèle un fichier par table à cataloguer.
---
--- Ce fichier est rejouable : COMMENT et SET TAG remplacent la valeur précédente.
--- À savoir : une table recréée (CREATE OR REPLACE TABLE) perd ses descriptions et ses tags.
--- C'est pourquoi le catalogue s'écrit dans des fichiers SQL rejouables, et non à la main dans l'interface.
-
+-- =====================================================================
+-- catalogue_dim_depot.sql — fiche de catalogue complète de MARTS.DIM_DEPOT : description de la table, de chaque
+-- colonne, tags SENSIBILITE et DUREE_CONSERVATION. Aucune donnée personnelle : pas de tag DONNEE_PERSONNELLE.
+-- Fichier fourni par le kit (modele_catalogue_dim_depot.sql), déplacé ici pour que le dossier catalogue/ contienne
+-- une fiche par table ; il a servi de gabarit aux quatre autres.
+-- Rôle : TRANSFORMER, propriétaire de la table. Rejouable : COMMENT et SET TAG remplacent la valeur précédente.
+-- À savoir : une table recréée (CREATE OR REPLACE TABLE) perd ses descriptions et ses tags ; c'est pourquoi le
+-- catalogue s'écrit dans des fichiers SQL rejouables, et non à la main dans l'interface.
+-- C'est bon quand : la première requête finale affiche 4 colonnes, toutes avec une description ;
+-- la seconde affiche, pour chaque colonne, les 2 tags de table dont elle hérite (level = TABLE).
+-- =====================================================================
+USE SECONDARY ROLES NONE;
 USE ROLE TRANSFORMER;
 USE WAREHOUSE NYC_TAXI_WH;
 

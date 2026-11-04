@@ -18,3 +18,7 @@ SELECT
     _source_file                AS source_file,
     _loaded_at                  AS loaded_at
 FROM NYC_TAXI.RAW.DRIVERS;
+
+-- Vérifier : attendu 400
+SELECT COUNT(*)
+  FROM NYC_TAXI.STAGING.STG_RH__DRIVERS;

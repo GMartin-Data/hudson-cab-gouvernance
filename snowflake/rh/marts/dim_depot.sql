@@ -8,3 +8,7 @@ INSERT OVERWRITE INTO NYC_TAXI.MARTS.DIM_DEPOT (depot, quartier, ouvert_en, nb_p
     ('Bronx',    'Hunts Point',       2009, 140),
     ('Brooklyn', 'East New York',     2011, 120),
     ('Queens',   'Long Island City',  2008, 180);
+
+-- Vérifier : attendu 3
+SELECT COUNT(*)
+  FROM NYC_TAXI.MARTS.DIM_DEPOT;

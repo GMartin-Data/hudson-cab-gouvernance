@@ -19,3 +19,7 @@ SELECT
     end_date IS NULL                                                          AS is_active,
     ROUND(DATEDIFF(day, hire_date, COALESCE(end_date, CURRENT_DATE())) / 365.25, 1) AS tenure_years
 FROM NYC_TAXI.STAGING.STG_RH__DRIVERS;
+
+-- Vérifier : attendu 400
+SELECT COUNT(*)
+  FROM NYC_TAXI.MARTS.DIM_DRIVER;

@@ -9,6 +9,8 @@
 USE SECONDARY ROLES NONE;
 USE ROLE TRANSFORMER;
 USE WAREHOUSE NYC_TAXI_WH;
+-- check role and warehouse
+SELECT CURRENT_ROLE(), CURRENT_WAREHOUSE();
 
 -- ===================================================================== A. Préparer
 -- Le format de fichier : comment lire un CSV (séparateur, ligne d'en-tête, guillemets)
@@ -35,12 +37,12 @@ CREATE TABLE IF NOT EXISTS NYC_TAXI.RAW.DRIVER_SHIFTS (
     hours_worked FLOAT, trips_count INTEGER, revenue_usd FLOAT,
     _source_file VARCHAR, _loaded_at TIMESTAMP_NTZ);
 
+
+-- Vérifier : le stage RH_STAGE existe
+SHOW STAGES IN SCHEMA NYC_TAXI.RAW;
+
 -- ===================================================================== Ensuite : déposer les fichiers (Snowsight)
 -- Onglet Databases (à côté de Workspaces) ou menu Catalog → Database Explorer → NYC_TAXI → RAW → Stages → RH_STAGE,
 -- bouton « + Files », puis choisir data/drivers.csv et data/driver_shifts.csv.
 -- Puis vérifiez qu'ils sont bien là, avant de lancer chargement_rh_2_copier.sql :
---   LIST @NYC_TAXI.RAW.RH_STAGE;     -- 2 fichiers : rh_stage/drivers.csv et rh_stage/driver_shifts.csv
-
-
--- Vérifier : le stage RH_STAGE existe
-SHOW STAGES IN SCHEMA NYC_TAXI.RAW;
+-- LIST @NYC_TAXI.RAW.RH_STAGE;     -- 2 fichiers : rh_stage/drivers.csv et rh_stage/driver_shifts.csv
