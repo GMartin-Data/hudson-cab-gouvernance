@@ -43,6 +43,12 @@ SHOW ROLES LIKE 'GOUVERNANCE'                                        -- $5
                 WHERE "privilege" = 'SELECT'
                   AND "name" NOT LIKE 'NYC_TAXI.GOUVERNANCE.%')
         UNION ALL
+        -- Un rôle hérite des droits des rôles qu'on lui donne : GRANT ROLE TRANSFORMER TO ROLE GOUVERNANCE
+        -- lui ouvrirait toutes les données sans qu'aucun SELECT direct n'apparaisse. Donc : aucun rôle reçu.
+        SELECT 'GOUVERNANCE : n''hérite d''aucun rôle (sinon il lirait les données par ricochet)', 0,
+               (SELECT COUNT(*) FROM $3
+                WHERE "granted_on" = 'ROLE')
+        UNION ALL
         SELECT 'Tags : SENSIBILITE, DONNEE_PERSONNELLE, DUREE_CONSERVATION dans NYC_TAXI.GOUVERNANCE (3 tags)', 3,
                (SELECT COUNT(*) FROM $2
                 WHERE "name" IN ('SENSIBILITE', 'DONNEE_PERSONNELLE', 'DUREE_CONSERVATION'))
