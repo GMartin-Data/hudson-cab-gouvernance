@@ -15,3 +15,4 @@ connections.toml
 # Fichiers de travail de l'assistant IA : pas des livrables
 CLAUDE.md
 progress.md
+tasks/
