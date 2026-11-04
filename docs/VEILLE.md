@@ -17,11 +17,13 @@ Le traitement : les données de chauffeurs employés à New York, gérées depui
 
 | Source | Type (officielle, professionnelle…) | Ce qu'on y surveille | Fréquence | Outil de suivi |
 |---|---|---|---|---|
-| | | | | |
-| | | | | |
-| | | | | |
+| CNIL, flux « Actualités » (`https://www.cnil.fr/fr/rss.xml`) | Officielle : l'autorité de contrôle compétente (section 1) | Délibérations et sanctions, recommandations et référentiels (gestion du personnel, durées de conservation), mises à jour des guides. Touche R1, le registre et la matrice des accès. | Hebdomadaire | Feedly, dossier « Veille RGPD RH » |
+| CEPD, flux « Actualités » en français (`https://www.edpb.europa.eu/feed/news_fr`) | Officielle : l'organe qui réunit les autorités de contrôle de l'Union | Lignes directrices et avis sur les notions du RGPD : sous-traitant (art. 28), responsabilité conjointe (art. 26), transferts hors de l'Union. Touche la section 1 et la question ouverte de la section 5. | Hebdomadaire | Feedly, même dossier |
+| Snowflake, notes de version (`https://docs.snowflake.com/en/release-notes/new-features`) | Professionnelle : l'éditeur, notre sous-traitant | Nouveautés et changements sur les politiques de masquage et d'accès par ligne, les tags, le Time Travel (R2), les tâches ; dépréciations qui casseraient les scripts. | Mensuelle | Favori du navigateur, dossier « Veille RGPD RH » (pas de flux RSS) |
 
-Qui, dans le binôme puis dans l'équipe, lit la veille et décide qu'une nouveauté demande une action : ______
+Capture du dispositif : `capture_veille_feedly.png`.
+
+Qui, dans le binôme puis dans l'équipe, lit la veille et décide qu'une nouveauté demande une action : le binôme est ici un humain et un assistant IA (Claude), l'humain restant dans la boucle à chaque décision. Greg lit Feedly chaque lundi et les notes de version Snowflake une fois par mois ; quand une nouveauté semble toucher une règle du contrat, une table du registre ou un rôle de la matrice des accès, il la soumet à l'assistant, qui évalue l'impact sur les scripts et les tests et propose un brouillon de fiche (section 3) ; Greg décide seul de l'action, relit tout ce que l'assistant écrit et commite. Dans l'équipe, le même partage vaut : l'ingénieur données lit la veille et pilote l'assistant, le délégué à la protection des données décide ; chaque action retenue donne une fiche en section 3 et, s'il y a écart avec le contrat, une ligne dans le README.
 
 ## 3. Les fiches de veille
 
