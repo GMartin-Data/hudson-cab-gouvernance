@@ -1,11 +1,13 @@
 # Fichiers du personnel : données personnelles, jamais sur un dépôt public (justification dans README.md)
 data/
 
-# Secrets : ne jamais versionner (mots de passe, clés, configuration de la CLI snow)
+# Secrets : ne jamais versionner (mots de passe, clés, configuration et connexions de la CLI snow)
 .env
 *.p8
 *.pem
+*.key
 config.toml
+connections.toml
 
 # Système
 .DS_Store
