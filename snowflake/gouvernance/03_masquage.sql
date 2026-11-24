@@ -38,11 +38,14 @@ ALTER MASKING POLICY NYC_TAXI.GOUVERNANCE.MASK_TEXTE SET BODY ->
     WHEN CURRENT_ROLE() IN ('RESP_DEPOT_QUEENS', 'RESP_DEPOT_BRONX')
          AND SYSTEM$GET_TAG_ON_CURRENT_COLUMN('NYC_TAXI.GOUVERNANCE.DONNEE_PERSONNELLE') IN ('nom', 'telephone')
       THEN val
-    -- E-mail : la partie locale disparaît, le domaine reste (il ne désigne personne). Sans @ (7 adresses du
-    -- fichier sont invalides, règle email_valide du jour 3), REGEXP_REPLACE ne changerait rien : masque complet.
-    WHEN SYSTEM$GET_TAG_ON_CURRENT_COLUMN('NYC_TAXI.GOUVERNANCE.DONNEE_PERSONNELLE') = 'email' AND val LIKE '%@%'
-      THEN REGEXP_REPLACE(val, '.+@', '*****@')
-    -- Tout le reste, pour tout autre rôle : un masque constant, qui remplace aussi les NULL.
+    -- E-mail, pour les rôles de la matrice seulement : la partie locale disparaît, le domaine reste (il ne désigne
+    -- personne). Sans @ (des adresses du fichier sont invalides, règle email_valide du jour 3), il n'y a pas de
+    -- domaine à garder : masque complet. Motif .*@ et non .+@ : une partie locale vide (« @domaine ») sortirait sinon telle quelle.
+    WHEN CURRENT_ROLE() IN ('ANALYSTE', 'RESP_DEPOT_QUEENS', 'RESP_DEPOT_BRONX')
+         AND SYSTEM$GET_TAG_ON_CURRENT_COLUMN('NYC_TAXI.GOUVERNANCE.DONNEE_PERSONNELLE') = 'email' AND val LIKE '%@%'
+      THEN REGEXP_REPLACE(val, '.*@', '*****@')
+    -- Tout le reste, pour tout autre rôle (ACCOUNTADMIN, SYSADMIN… : « rien », pas même un domaine) : un masque
+    -- constant, qui remplace aussi les NULL.
     ELSE '*****'
   END;
 
