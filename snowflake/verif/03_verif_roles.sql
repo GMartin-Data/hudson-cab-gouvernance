@@ -3,8 +3,9 @@
 -- Ce qui doit être vrai : les quatre rôles métier du contrat existent et sont donnés à un utilisateur ; chacun
 -- a le chemin jusqu'aux tables (USAGE sur le warehouse, la base, le schéma MARTS) ; RH_PAIE et les deux
 -- responsables de dépôt lisent DIM_DRIVER, MART_DRIVER_MONTHLY et DIM_DEPOT ; ANALYSTE lit tout MARTS, tables
--- futures comprises ; tous lisent les vues futures de GOUVERNANCE (V_CATALOGUE, jour 3) ; et rien d'autre :
--- aucun droit sur RAW ni STAGING, aucune écriture, aucun rôle hérité, aucun droit sur le compte.
+-- futures comprises ; tous voient le schéma GOUVERNANCE (USAGE, pour lire V_CATALOGUE au jour 3 par un GRANT
+-- nommé sur la vue) ; et rien d'autre : aucun droit futur sur GOUVERNANCE, aucun droit sur RAW ni STAGING,
+-- rien que USAGE et SELECT, aucun rôle hérité, aucun droit sur le compte.
 -- Rôle : ACCOUNTADMIN, parce qu'il s'agit de lire des DROITS (SHOW GRANTS), pas des données.
 -- Rejouable. Avant 02_roles_metier.sql : erreur « Role 'RH_PAIE' does not exist » (test rouge).
 -- C'est bon quand : toutes les lignes affichent statut = OK.
@@ -71,10 +72,11 @@ SHOW GRANTS TO ROLE SYSADMIN                                        -- $8
                (SELECT COUNT(*) FROM droits
                 WHERE privilege = 'USAGE' AND granted_on = 'SCHEMA' AND name = 'NYC_TAXI.GOUVERNANCE')
         UNION ALL
-        SELECT 'Chaque rôle métier : SELECT sur les vues futures de GOUVERNANCE, pour V_CATALOGUE au jour 3 (4 droits)', 4,
+        -- Un droit futur sur les vues de GOUVERNANCE ouvrirait toute vue créée là demain (audit, qualité) : V_CATALOGUE
+        -- recevra un GRANT nommé au jour 3, par son propriétaire.
+        SELECT 'Rôles métier : aucun droit futur sur GOUVERNANCE', 0,
                (SELECT COUNT(*) FROM $1
-                WHERE "grantee_name" IN ('RH_PAIE', 'RESP_DEPOT_QUEENS', 'RESP_DEPOT_BRONX', 'ANALYSTE')
-                  AND "privilege" = 'SELECT' AND "grant_on" = 'VIEW')
+                WHERE "grantee_name" IN ('RH_PAIE', 'RESP_DEPOT_QUEENS', 'RESP_DEPOT_BRONX', 'ANALYSTE'))
         UNION ALL
         -- Le contrat : « Personne d'autre que le rôle des outils ne lit RAW ni STAGING. »
         SELECT 'Rôles métier : aucun droit sur RAW ni STAGING', 0,
@@ -86,10 +88,9 @@ SHOW GRANTS TO ROLE SYSADMIN                                        -- $8
                (SELECT COUNT(*) FROM droits
                 WHERE granted_on = 'TABLE' AND name NOT LIKE 'NYC_TAXI.MARTS.%')
         UNION ALL
-        SELECT 'Rôles métier : lecture seule (aucune écriture, création, propriété ni APPLY)', 0,
-               (SELECT COUNT(*) FROM droits
-                WHERE privilege IN ('INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'OWNERSHIP')
-                   OR privilege LIKE 'CREATE%' OR privilege LIKE 'APPLY%')
+        -- Liste blanche : tout privilège autre que USAGE et SELECT est de trop (MODIFY permettrait de détacher une politique).
+        SELECT 'Rôles métier : rien que USAGE et SELECT (ni écriture, ni MODIFY, ni création, ni propriété, ni APPLY)', 0,
+               (SELECT COUNT(*) FROM droits WHERE privilege NOT IN ('USAGE', 'SELECT'))
         UNION ALL
         -- Un rôle hérité ouvrirait tout sans qu'aucun SELECT direct n'apparaisse (même contrôle que GOUVERNANCE, verif/01).
         SELECT 'Rôles métier : n''héritent d''aucun rôle (TRANSFORMER et GOUVERNANCE hors de portée)', 0,
