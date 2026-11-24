@@ -41,7 +41,7 @@ Le propriétaire d'un objet est le rôle qui l'a créé.
 | Créer la vue du catalogue dans `GOUVERNANCE` | `TRANSFORMER` | `CREATE VIEW` sur le schéma `GOUVERNANCE` | `GOUVERNANCE` — jour 3 |
 | Lire `DIM_DRIVER`, `MART_DRIVER_MONTHLY` et `DIM_DEPOT` | `RH_PAIE`, `RESP_DEPOT_QUEENS`, `RESP_DEPOT_BRONX`, `ANALYSTE` (`TRANSFORMER` lit en tant que propriétaire) | `USAGE` sur la base `NYC_TAXI` et le schéma `MARTS` + `SELECT` sur chaque table | `ACCOUNTADMIN` (`02_roles_metier.sql`) ; `SHOW GRANTS` affiche `TRANSFORMER`, propriétaire des tables, dans `granted_by` : Snowflake enregistre le propriétaire quand l'administrateur agit par `MANAGE GRANTS` |
 | Lire toute table de `MARTS`, y compris une table recréée demain | `ANALYSTE` | `SELECT ON ALL TABLES` + `SELECT ON FUTURE TABLES IN SCHEMA MARTS` | `ACCOUNTADMIN`, propriétaire du schéma `MARTS` (un droit sur les objets futurs demande la propriété du schéma ou `MANAGE GRANTS`) |
-| Lire la vue du catalogue `V_CATALOGUE` (jour 3), même recréée | les quatre rôles métier | `USAGE` sur le schéma `GOUVERNANCE` + `SELECT ON FUTURE VIEWS IN SCHEMA GOUVERNANCE` (vues seulement : `ACCES_DEPOT` et `QUALITE_RESULTATS` restent fermées) | `ACCOUNTADMIN` (`02_roles_metier.sql`) |
+| Lire la vue du catalogue `V_CATALOGUE` (jour 3) | les quatre rôles métier | `USAGE` sur le schéma `GOUVERNANCE` (`02_roles_metier.sql`) + `SELECT` nommé sur la vue, donné au jour 3 dans le script qui la crée. Pas de droit sur les vues futures du schéma : il aurait ouvert toute vue d'audit ou de qualité créée là demain (donné puis retiré le 2026-11-24, après revue). `ACCES_DEPOT` et `QUALITE_RESULTATS` restent fermées | `ACCOUNTADMIN` pour `USAGE` ; le propriétaire de la vue pour `SELECT` (jour 3) |
 | Endosser un rôle métier pour le tester (`USE ROLE`) | l'utilisateur qui déroule le cahier de tests | `GRANT ROLE … TO USER` | `ACCOUNTADMIN` (`02_roles_metier.sql`) |
 | Exécuter une requête | chaque rôle | `USAGE` sur le warehouse `NYC_TAXI_WH` | `ACCOUNTADMIN` (`00_installation.sql`, `01_gouvernance.sql`, `02_roles_metier.sql`) |
 
@@ -66,7 +66,8 @@ Un test est vert quand « obtenu » est identique à « attendu ». Un accès re
 | Type | Rôle qui ne doit pas voir en clair | Valeur lue | Pourquoi cette forme |
 |---|---|---|---|
 | texte (nom, prénom, téléphone, licence, `driver_name`) | selon la matrice | `*****` | une constante, qui remplace aussi les `NULL` : on ne sait pas qui n'a pas de téléphone |
-| e-mail | selon la matrice | `*****@<domaine>` ; `*****` si la valeur ne contient pas de `@` | la partie locale identifie, le domaine non ; le domaine reste utile (adresse pro ou perso). Sept adresses du fichier n'ont pas de `@` (règle `email_valide`, jour 3) : sans ce cas, « garder le domaine » les aurait laissées en clair |
+| e-mail | `RESP_DEPOT_*`, `ANALYSTE` | `*****@<domaine>` ; `*****` si la valeur ne contient pas de `@` | la partie locale identifie, le domaine non ; le domaine reste utile (adresse pro ou perso). Sept adresses du fichier n'ont pas de `@` (règle `email_valide`, jour 3) : sans ce cas, « garder le domaine » les aurait laissées en clair |
+| e-mail | tout rôle hors de la matrice | `*****` | le contrat dit « rien » : pas même le domaine |
 | date (`birth_date`) | `ANALYSTE` | le 1er janvier de l'année réelle (`DATE_TRUNC('YEAR')`) | l'analyse n'a besoin que de l'année ; une date masquée reste une date |
 | date (`birth_date`) | tout autre rôle | `NULL` | personne d'autre n'en a l'usage ; une fausse date entrerait dans un calcul d'âge sans erreur |
 | `driver_id` (`identifiant_interne`) | aucun rôle métier : le contrat le veut visible ; masqué (`*****`) pour les rôles hors de la matrice | en clair pour `RH_PAIE`, `RESP_DEPOT_*`, `ANALYSTE`, `TRANSFORMER` | compter et joindre sans nommer ; `ACCOUNTADMIN` ne voit rien, pas même l'identifiant |
@@ -88,10 +89,11 @@ Les politiques lisent le **rôle actif** (`CURRENT_ROLE()`), pas la hiérarchie 
 | 7 bis | tout rôle métier | `SELECT COUNT(*) FROM NYC_TAXI.MARTS.DIM_DEPOT` | 3 (référentiel sans filtre) | 3 pour chaque rôle, `ACCOUNTADMIN` compris | oui |
 | 8 | `RH_PAIE` | `SELECT COUNT(*) FROM NYC_TAXI.RAW.DRIVER_SHIFTS` | refusé | refusé | oui |
 | 9 | `ANALYSTE` | `SELECT COUNT(*) FROM NYC_TAXI.RAW.DRIVERS` | refusé | refusé (idem `RESP_DEPOT_QUEENS` sur `RAW.DRIVERS`, `RESP_DEPOT_BRONX` sur `STAGING`, `GOUVERNANCE` sur `RAW`) | oui |
-| 9 bis | `ACCOUNTADMIN` | `SELECT first_name, email FROM NYC_TAXI.RAW.DRIVERS LIMIT 3` | 3 lignes (pas de politique de lignes sur `RAW`), `*****` et `*****@<domaine>` | mesuré sur les 400 lignes : nom, prénom, licence, téléphone et `driver_id` tous `*****`, e-mails `*****…`, dates `NULL` | oui |
-| 9 ter | `RESP_DEPOT_QUEENS` | `SELECT row_count FROM NYC_TAXI.INFORMATION_SCHEMA.TABLES WHERE table_name = 'DIM_DRIVER'` | 400 : le compte du catalogue est physique, la politique de lignes ne le filtre pas (limite connue, sans donnée personnelle) | 400, politique active ; limite confirmée | oui |
+| 9 bis | `ACCOUNTADMIN` | `SELECT first_name, email FROM NYC_TAXI.RAW.DRIVERS LIMIT 3` | 3 lignes (pas de politique de lignes sur `RAW`), `*****` partout, e-mail compris (pas même le domaine) | mesuré sur les 400 lignes : nom, prénom, licence, téléphone, `driver_id` et e-mail tous `*****`, dates `NULL` | oui |
+| 9 ter | `SYSADMIN` | les mêmes requêtes que 7 et 9 bis | comme `ACCOUNTADMIN` : 0 ligne de `DIM_DRIVER` et du mart, 3 dépôts, 400 lignes de `RAW.DRIVERS` sans rien en clair (il hérite de `RH_PAIE` et de `TRANSFORMER`, mais les politiques lisent le rôle actif) | 0, 0, 3, 400 lignes toutes masquées | oui |
+| 9 quater | `RESP_DEPOT_QUEENS` | `SELECT row_count FROM NYC_TAXI.INFORMATION_SCHEMA.TABLES WHERE table_name = 'DIM_DRIVER'` | 400 : le compte du catalogue est physique, la politique de lignes ne le filtre pas (limite connue, sans donnée personnelle) | 400, politique active ; limite confirmée | oui |
 
-Obtenu le 2026-11-24 par `snowflake/verif/04_verif_acces.sql` : 79 contrôles OK, 0 KO, après `03_masquage.sql` et `04_acces_depot.sql`, puis à nouveau après leur second passage.
+Obtenu le 2026-11-24 par `snowflake/verif/04_verif_acces.sql` : aucun KO après `03_masquage.sql` et `04_acces_depot.sql`, puis à nouveau après leur second passage. Après la revue de code du même jour, le script a été durci (contrôles de masquage écrits en absolu plutôt qu'en volumes, refus reconnus à leur message d'erreur, section `SYSADMIN`, recensement par politique) et la branche e-mail resserrée pour les administrateurs : 87 contrôles OK, 0 KO.
 
 ### Valeurs visibles
 
@@ -118,6 +120,6 @@ Obtenu (2026-11-24, `verif/04`) : conforme pour les quatre rôles métier, `TRAN
 | 10 | Avec le rôle des outils, après avoir relancé les fichiers SQL : nombre de lignes de `DIM_DRIVER` et de `MART_DRIVER_MONTHLY` | 400 et 914 ; `driver_name` `NULL` sur 25 lignes seulement (les services sans chauffeur connu, comme avant) | 400 et 914 ; 25 `NULL`, aucun `*****` | oui |
 | 11 | Avec `RH_PAIE` : l'e-mail de `D0003` est toujours une vraie adresse | en clair, contient `@`, ne commence pas par `*****` | 393 e-mails avec `@`, aucun masque (D0003 compris) | oui |
 | 12 | Les politiques sont toujours attachées après la relance (requête de la section 7 du contrat) | `DIM_DRIVER` : 7 masquages via le tag + `RAP_DEPOT` sur `depot` ; `MART_DRIVER_MONTHLY` : 2 + 1 | 7 + 1 et 2 + 1, `ACTIVE` ; 19 références au total sur les quatre tables RH | oui |
-| 13 | `snowflake/verif/02_verif_catalogue.sql` et `04_verif_acces.sql` après la relance | aucun KO | 11 OK et 79 OK, 0 KO (2026-11-24, relance de `marts/dim_depot.sql`, `dim_driver.sql`, `mart_driver_monthly.sql` avec `TRANSFORMER`) | oui |
+| 13 | `snowflake/verif/02_verif_catalogue.sql` et `04_verif_acces.sql` après la relance | aucun KO | 11 OK et aucun KO dans `verif/04` (2026-11-24, relance de `marts/dim_depot.sql`, `dim_driver.sql`, `mart_driver_monthly.sql` avec `TRANSFORMER`) | oui |
 
 Ajoutez vos propres tests : un cahier qui ne contient que des tests verts dès le premier essai n'a probablement pas cherché les cas limites.
