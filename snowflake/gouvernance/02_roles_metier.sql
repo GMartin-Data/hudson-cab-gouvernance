@@ -70,17 +70,14 @@ GRANT SELECT ON TABLE NYC_TAXI.MARTS.DIM_DEPOT           TO ROLE RESP_DEPOT_BRON
 GRANT SELECT ON ALL    TABLES IN SCHEMA NYC_TAXI.MARTS TO ROLE ANALYSTE;
 GRANT SELECT ON FUTURE TABLES IN SCHEMA NYC_TAXI.MARTS TO ROLE ANALYSTE;
 
--- ===================================================================== 5. Le catalogue du jour 3 : voir le schéma GOUVERNANCE et lire ses vues futures (V_CATALOGUE)
--- Vues futures seulement : les tables de GOUVERNANCE (ACCES_DEPOT, QUALITE_RESULTATS) restent fermées aux rôles métier.
+-- ===================================================================== 5. Le catalogue du jour 3 : voir le schéma GOUVERNANCE, rien de plus
+-- USAGE seulement : V_CATALOGUE recevra un GRANT SELECT nommé, par son propriétaire, dans le script qui la crée (jour 3).
+-- Pas de droit sur les vues FUTURES du schéma : il ouvrirait aussi toute vue d'audit ou de qualité créée là demain.
+-- Les tables de GOUVERNANCE (ACCES_DEPOT, QUALITE_RESULTATS) restent fermées aux rôles métier.
 GRANT USAGE ON SCHEMA NYC_TAXI.GOUVERNANCE TO ROLE RH_PAIE;
 GRANT USAGE ON SCHEMA NYC_TAXI.GOUVERNANCE TO ROLE RESP_DEPOT_QUEENS;
 GRANT USAGE ON SCHEMA NYC_TAXI.GOUVERNANCE TO ROLE RESP_DEPOT_BRONX;
 GRANT USAGE ON SCHEMA NYC_TAXI.GOUVERNANCE TO ROLE ANALYSTE;
-
-GRANT SELECT ON FUTURE VIEWS IN SCHEMA NYC_TAXI.GOUVERNANCE TO ROLE RH_PAIE;
-GRANT SELECT ON FUTURE VIEWS IN SCHEMA NYC_TAXI.GOUVERNANCE TO ROLE RESP_DEPOT_QUEENS;
-GRANT SELECT ON FUTURE VIEWS IN SCHEMA NYC_TAXI.GOUVERNANCE TO ROLE RESP_DEPOT_BRONX;
-GRANT SELECT ON FUTURE VIEWS IN SCHEMA NYC_TAXI.GOUVERNANCE TO ROLE ANALYSTE;
 
 -- ===================================================================== Vérifier : 3 USAGE (warehouse, base, MARTS), 3 SELECT sur MARTS, 1 USAGE sur GOUVERNANCE
 SHOW GRANTS TO ROLE ANALYSTE;
