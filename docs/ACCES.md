@@ -38,12 +38,19 @@ Le propriétaire d'un objet est le rôle qui l'a créé.
 | Ajouter une politique d'accès par ligne à une table | `GOUVERNANCE` | `APPLY ROW ACCESS POLICY` sur le compte | `ACCOUNTADMIN` — jour 2 |
 | Écrire une ligne dans `QUALITE_RESULTATS` | `TRANSFORMER` | `USAGE` sur le schéma `GOUVERNANCE` + `INSERT` (et `SELECT` pour relire) sur la table | `GOUVERNANCE` (propriétaire de la table) |
 | Créer la vue du catalogue dans `GOUVERNANCE` | `TRANSFORMER` | `CREATE VIEW` sur le schéma `GOUVERNANCE` | `GOUVERNANCE` — jour 3 |
-| Lire `DIM_DRIVER` | `TRANSFORMER` (propriétaire) ; rôles métier au jour 2 | `USAGE` sur base et schéma + `SELECT` sur la table | `TRANSFORMER` (propriétaire) — jour 2 |
-| Exécuter une requête | chaque rôle | `USAGE` sur le warehouse `NYC_TAXI_WH` | `ACCOUNTADMIN` |
+| Lire `DIM_DRIVER`, `MART_DRIVER_MONTHLY` et `DIM_DEPOT` | `RH_PAIE`, `RESP_DEPOT_QUEENS`, `RESP_DEPOT_BRONX`, `ANALYSTE` (`TRANSFORMER` lit en tant que propriétaire) | `USAGE` sur la base `NYC_TAXI` et le schéma `MARTS` + `SELECT` sur chaque table | `ACCOUNTADMIN` (`02_roles_metier.sql`) ; `SHOW GRANTS` affiche `TRANSFORMER`, propriétaire des tables, dans `granted_by` : Snowflake enregistre le propriétaire quand l'administrateur agit par `MANAGE GRANTS` |
+| Lire toute table de `MARTS`, y compris une table recréée demain | `ANALYSTE` | `SELECT ON ALL TABLES` + `SELECT ON FUTURE TABLES IN SCHEMA MARTS` | `ACCOUNTADMIN`, propriétaire du schéma `MARTS` (un droit sur les objets futurs demande la propriété du schéma ou `MANAGE GRANTS`) |
+| Lire la vue du catalogue `V_CATALOGUE` (jour 3), même recréée | les quatre rôles métier | `USAGE` sur le schéma `GOUVERNANCE` + `SELECT ON FUTURE VIEWS IN SCHEMA GOUVERNANCE` (vues seulement : `ACCES_DEPOT` et `QUALITE_RESULTATS` restent fermées) | `ACCOUNTADMIN` (`02_roles_metier.sql`) |
+| Endosser un rôle métier pour le tester (`USE ROLE`) | l'utilisateur qui déroule le cahier de tests | `GRANT ROLE … TO USER` | `ACCOUNTADMIN` (`02_roles_metier.sql`) |
+| Exécuter une requête | chaque rôle | `USAGE` sur le warehouse `NYC_TAXI_WH` | `ACCOUNTADMIN` (`00_installation.sql`, `01_gouvernance.sql`, `02_roles_metier.sql`) |
 
 ### Ce que cette carte permet à un rôle de défaire
 
 Pour chaque rôle qui peut poser ou retirer un tag, ou détacher une politique : que pourrait-il démasquer ? Est-ce acceptable, et qui le surveille ?
+
+- **`SYSADMIN`, donc `ACCOUNTADMIN`, hérite de tous les rôles du brief** : `TRANSFORMER` (lit tout en clair), `GOUVERNANCE` (réécrit tags et politiques) et les quatre rôles métier (`00_installation.sql`, `01_gouvernance.sql`, `02_roles_metier.sql` : `GRANT ROLE … TO ROLE SYSADMIN`). C'est la hiérarchie standard de Snowflake, qui permet à l'administration de gérer ces rôles. Le prix : un utilisateur `SYSADMIN` peut défaire la protection en deux `USE ROLE` (`GOUVERNANCE` pour détacher une politique, `TRANSFORMER` pour lire). Accepté parce que les politiques du jour 2 regardent le rôle **actif** (`CURRENT_ROLE()`) et non l'héritage : tant qu'il reste `SYSADMIN`, il lit `RAW` avec les colonnes personnelles masquées et ne voit aucune ligne de `DIM_DRIVER`. Qui surveille : l'audit du jour 3 (`06_audit.sql`, `ACCESS_HISTORY` joint à `QUERY_HISTORY`) nomme le rôle qui a lu.
+- **Aucun rôle métier n'hérite de `TRANSFORMER` ni de `GOUVERNANCE`**, et `GOUVERNANCE` n'hérite de personne : vérifié par `verif/01` (contrôle 15) et `verif/03` (« n'héritent d'aucun rôle »). Un héritage ouvrirait les données sans qu'aucun `SELECT` direct n'apparaisse dans `SHOW GRANTS`.
+- **Rôles secondaires** : les politiques lisent le rôle principal, mais les droits de lecture s'additionnent entre tous les rôles actifs. Les utilisateurs qui déroulent le cahier de tests ont `DEFAULT_SECONDARY_ROLES = ()`, et chaque script commence par `USE SECONDARY ROLES NONE`. Sans cela, un test « refusé » renvoie des lignes.
 
 ---
 
