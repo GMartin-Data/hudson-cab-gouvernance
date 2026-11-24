@@ -74,6 +74,8 @@ Les règles doivent survivre au pipeline : les scripts de `marts/` remplissent l
 
 Captures Snowsight des tags de `DIM_DRIVER` : `docs/capture_tags_dim_driver.png` (tags et description de la table, descriptions de colonnes) et `docs/capture_tags_colonnes_dim_driver.png` (tag `DONNEE_PERSONNELLE` colonne par colonne).
 
+Capture de la même requête lue par trois rôles : `docs/capture_meme_requete_deux_roles.png` (sortie de la CLI `snow`, rendue en image). La requête compte par dépôt les chauffeurs, les e-mails en clair et les dates de naissance absentes, sans afficher une seule valeur personnelle : `RH_PAIE` voit 3 dépôts, 400 chauffeurs, 400 e-mails en clair ; `RESP_DEPOT_QUEENS` voit Queens seul, 161 chauffeurs, 0 e-mail en clair, 161 dates absentes ; `ANALYSTE` voit les 3 dépôts, 0 e-mail en clair, 0 date absente (l'année est conservée).
+
 ### Choix et limites
 
 - **Script de copie fourni rendu rejouable.** `chargement_rh_2_copier.sql` désignait les fichiers par `FILES = ('drivers.csv')`. Combiné à `PURGE = TRUE`, il échouait à la relance (« Remote file was not found ») : le fichier purgé est exigé nommément. Remplacé par `PATTERN = '.*drivers[.]csv'`, qui charge ce qui correspond et traite zéro fichier sans erreur. La vérification finale tient en une requête (`LIST ->> SELECT`), lisible d'un coup dans Snowsight.
