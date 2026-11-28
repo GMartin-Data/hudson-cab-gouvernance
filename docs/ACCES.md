@@ -24,7 +24,7 @@ Le propriétaire d'un objet est le rôle qui l'a créé.
 | Politique d'accès par ligne `RAP_DEPOT` | `GOUVERNANCE` (`04_acces_depot.sql`, attachée à `DIM_DRIVER` et `MART_DRIVER_MONTHLY` sur `depot`) |
 | Table `ACCES_DEPOT` | `GOUVERNANCE` (`04_acces_depot.sql`) ; aucun rôle métier ne la lit : la politique la consulte avec les droits de son propriétaire |
 | Table `QUALITE_RESULTATS` | `GOUVERNANCE` (créée par lui dans son schéma) |
-| Vue `V_CATALOGUE` | jour 3 |
+| Vue `V_CATALOGUE` | `TRANSFORMER` (`snowflake/rh/catalogue/v_catalogue.sql`), dans le schéma de `GOUVERNANCE` : le rôle des outils voit les tables que la vue décrit, `GOUVERNANCE` non. `GOUVERNANCE` ne lit d'ailleurs pas la vue (aucun droit dessus, vérifié) |
 
 ### Qui fait quoi, avec quel droit
 
@@ -38,10 +38,10 @@ Le propriétaire d'un objet est le rôle qui l'a créé.
 | Ajouter une politique d'accès par ligne à une table qu'il ne possède pas | `GOUVERNANCE` | `APPLY ROW ACCESS POLICY` sur le compte | `ACCOUNTADMIN` (`01_gouvernance.sql`) — fait dans `04_acces_depot.sql` |
 | Voir où une politique est attachée (`POLICY_REFERENCES`) | `GOUVERNANCE` | propriétaire de la politique (`POLICY_NAME =>`) ou `APPLY … POLICY` sur le compte (`REF_ENTITY_NAME =>` sur une table qu'il ne possède pas, vérifié) | `ACCOUNTADMIN` (`01_gouvernance.sql`) |
 | Écrire une ligne dans `QUALITE_RESULTATS` | `TRANSFORMER` | `USAGE` sur le schéma `GOUVERNANCE` + `INSERT` (et `SELECT` pour relire) sur la table | `GOUVERNANCE` (propriétaire de la table) |
-| Créer la vue du catalogue dans `GOUVERNANCE` | `TRANSFORMER` | `CREATE VIEW` sur le schéma `GOUVERNANCE` | `GOUVERNANCE` — jour 3 |
+| Créer la vue du catalogue dans `GOUVERNANCE` | `TRANSFORMER` | `CREATE VIEW` sur le schéma `GOUVERNANCE` | `GOUVERNANCE` (`01_gouvernance.sql`) — fait dans `v_catalogue.sql` |
 | Lire `DIM_DRIVER`, `MART_DRIVER_MONTHLY` et `DIM_DEPOT` | `RH_PAIE`, `RESP_DEPOT_QUEENS`, `RESP_DEPOT_BRONX`, `ANALYSTE` (`TRANSFORMER` lit en tant que propriétaire) | `USAGE` sur la base `NYC_TAXI` et le schéma `MARTS` + `SELECT` sur chaque table | `ACCOUNTADMIN` (`02_roles_metier.sql`) ; `SHOW GRANTS` affiche `TRANSFORMER`, propriétaire des tables, dans `granted_by` : Snowflake enregistre le propriétaire quand l'administrateur agit par `MANAGE GRANTS` |
 | Lire toute table de `MARTS`, y compris une table recréée demain | `ANALYSTE` | `SELECT ON ALL TABLES` + `SELECT ON FUTURE TABLES IN SCHEMA MARTS` | `ACCOUNTADMIN`, propriétaire du schéma `MARTS` (un droit sur les objets futurs demande la propriété du schéma ou `MANAGE GRANTS`) |
-| Lire la vue du catalogue `V_CATALOGUE` (jour 3) | les quatre rôles métier | `USAGE` sur le schéma `GOUVERNANCE` (`02_roles_metier.sql`) + `SELECT` nommé sur la vue, donné au jour 3 dans le script qui la crée. Pas de droit sur les vues futures du schéma : il aurait ouvert toute vue d'audit ou de qualité créée là demain (donné puis retiré le 2026-11-24, après revue). `ACCES_DEPOT` et `QUALITE_RESULTATS` restent fermées | `ACCOUNTADMIN` pour `USAGE` ; le propriétaire de la vue pour `SELECT` (jour 3) |
+| Lire la vue du catalogue `V_CATALOGUE` | les quatre rôles métier | `USAGE` sur le schéma `GOUVERNANCE` (`02_roles_metier.sql`) + `SELECT` nommé sur la vue, donné dans le script qui la crée (`v_catalogue.sql`). La vue ne rend que ce que le rôle a le droit de voir dans `INFORMATION_SCHEMA` : les trois tables de `MARTS`, 24 colonnes, les mêmes pour les quatre rôles (`verif/07`). Pas de droit sur les vues futures du schéma : il aurait ouvert toute vue d'audit ou de qualité créée là demain (donné puis retiré le 2026-11-24, après revue). `ACCES_DEPOT` et `QUALITE_RESULTATS` restent fermées | `ACCOUNTADMIN` pour `USAGE` ; `TRANSFORMER`, propriétaire de la vue, pour `SELECT` |
 | Endosser un rôle métier pour le tester (`USE ROLE`) | l'utilisateur qui déroule le cahier de tests | `GRANT ROLE … TO USER` | `ACCOUNTADMIN` (`02_roles_metier.sql`) |
 | Exécuter une requête | chaque rôle | `USAGE` sur le warehouse `NYC_TAXI_WH` | `ACCOUNTADMIN` (`00_installation.sql`, `01_gouvernance.sql`, `02_roles_metier.sql`) |
 
