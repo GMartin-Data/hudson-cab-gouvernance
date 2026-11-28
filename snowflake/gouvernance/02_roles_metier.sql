@@ -71,7 +71,8 @@ GRANT SELECT ON ALL    TABLES IN SCHEMA NYC_TAXI.MARTS TO ROLE ANALYSTE;
 GRANT SELECT ON FUTURE TABLES IN SCHEMA NYC_TAXI.MARTS TO ROLE ANALYSTE;
 
 -- ===================================================================== 5. Le catalogue du jour 3 : voir le schéma GOUVERNANCE, rien de plus
--- USAGE seulement : V_CATALOGUE recevra un GRANT SELECT nommé, par son propriétaire, dans le script qui la crée (jour 3).
+-- USAGE seulement : V_CATALOGUE reçoit un GRANT SELECT nommé, par son propriétaire, dans le script qui la crée
+-- (snowflake/rh/catalogue/v_catalogue.sql, jour 3).
 -- Pas de droit sur les vues FUTURES du schéma : il ouvrirait aussi toute vue d'audit ou de qualité créée là demain.
 -- Les tables de GOUVERNANCE (ACCES_DEPOT, QUALITE_RESULTATS) restent fermées aux rôles métier.
 GRANT USAGE ON SCHEMA NYC_TAXI.GOUVERNANCE TO ROLE RH_PAIE;
