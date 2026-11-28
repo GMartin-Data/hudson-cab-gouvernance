@@ -113,6 +113,8 @@ Pour `TRANSFORMER` : tout en clair, toutes les lignes, dans `RAW` comme dans `MA
 
 Obtenu (2026-11-24, `verif/04`) : conforme pour les quatre rôles métier, `TRANSFORMER` et `ACCOUNTADMIN`. Mesuré sur toute la table plutôt que sur `D0003` seul : `RH_PAIE` lit 393 e-mails avec `@` et 12 téléphones `NULL` (les valeurs du fichier) ; `RESP_DEPOT_QUEENS` lit `D0003`, nom, prénom et téléphone en clair, 161 e-mails `*****…`, 161 licences `*****`, 161 dates `NULL` ; `RESP_DEPOT_BRONX` ne voit pas `D0003` ; `ANALYSTE` lit `D0003`, 400 `*****` sur nom, prénom, licence et téléphone, 400 e-mails `*****…` dont 393 avec leur domaine, 400 dates au 1er janvier sur 50 années distinctes, 914 `driver_name` `*****` dans le mart.
 
+Depuis la purge R1 du 2026-11-28 (`snowflake/rh/purge_rh.sql`, 46 chauffeurs dont le contrat a pris fin il y a 5 ans ou plus), les volumes de ce cahier ont changé : `DIM_DRIVER` compte 354 chauffeurs (400 avant), dont 143 à Queens (161) et 106 dans le Bronx (122) ; le mart reste à 914 lignes, 365 pour Queens et 290 pour le Bronx. Les « obtenus » ci-dessus sont ceux du 2026-11-24 ; `snowflake/verif/04_verif_acces.sql` porte les valeurs d'après la purge et reste sans KO (87 OK le 2026-11-28).
+
 ### Le pipeline fonctionne toujours
 
 | N° | Vérification | Attendu | Obtenu | Vert ? |
