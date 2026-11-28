@@ -5,12 +5,15 @@
 --   du rôle des outils (une tâche s'exécute avec les droits de son propriétaire) ; les deux tâches filles sont activées ;
 --   le seuil de la règle bloquante (50) est dans la configuration du graphe ;
 --   la dernière exécution a enregistré une ligne par règle dans QUALITE_RESULTATS, avec la mesure, le seuil et le
---   statut attendus ; chaque exécution enregistre ses quatre lignes, statut OK ou ALERTE, rien d'autre.
+--   statut attendus ; chaque exécution enregistre ses quatre lignes, statut OK ou ALERTE, rien d'autre ;
+--   le blocage a été prouvé et il en reste une trace : une mesure de service_rattache enregistrée en ALERTE sous
+--   un seuil abaissé (snowflake/verif/09_preuve_blocage.sql), donc écrite AVANT que la tâche n'échoue.
 -- L'état de la racine (activée ou suspendue) n'est pas testé : elle est suspendue en fin de brief pour ne pas
 -- consommer de crédits, et se lance à la main (EXECUTE TASK fonctionne sur une racine suspendue).
 -- Que les règles tiennent après les tâches (politiques, tags, volumes) : verif/02, 04, 05 et 07, rejoués ensuite.
 -- Rôle : TRANSFORMER, propriétaire des tâches.
--- Rejouable. Avant taches_rh.sql : 9 lignes KO (aucune tâche, aucune mesure).
+-- Rejouable. Avant taches_rh.sql : 10 lignes KO (aucune tâche, aucune mesure). Entre taches_rh.sql et
+-- 09_preuve_blocage.sql : 1 ligne KO, la preuve du blocage.
 -- C'est bon quand : aucun KO dans la sortie, aucune erreur :
 --   snow sql -c hudson_cab --filename snowflake/verif/08_verif_taches.sql | grep -c ' KO '   → 0
 -- Constantes : les mesures du 2026-11-28 (4 licences en trop, 25 services sans chauffeur, 18 services en double,
@@ -67,6 +70,10 @@ SHOW TASKS IN SCHEMA NYC_TAXI.MARTS
                (SELECT COUNT(*) FROM derniere
                 WHERE (regle, statut) IN (('licence_unique', 'ALERTE'), ('service_rattache', 'OK'),
                                           ('service_unique', 'ALERTE'), ('email_valide', 'ALERTE')))
+        UNION ALL
+        SELECT 'QUALITE_RESULTATS : le blocage est tracé (service_rattache en ALERTE sous un seuil abaissé, mesure écrite avant l''erreur)', 1,
+               (SELECT IFF(COUNT(*) >= 1, 1, 0) FROM NYC_TAXI.GOUVERNANCE.QUALITE_RESULTATS
+                WHERE regle = 'service_rattache' AND statut = 'ALERTE' AND seuil < 50 AND nb_anomalies > seuil)
         UNION ALL
         SELECT 'QUALITE_RESULTATS : chaque exécution a enregistré exactement une ligne par règle', 0,
                (SELECT COUNT(*) FROM (SELECT mesure_le FROM NYC_TAXI.GOUVERNANCE.QUALITE_RESULTATS
