@@ -3,12 +3,13 @@
 -- Ce qui doit être vrai : les quatre rôles métier du contrat existent et sont donnés à un utilisateur ; chacun
 -- a le chemin jusqu'aux tables (USAGE sur le warehouse, la base, le schéma MARTS) ; RH_PAIE et les deux
 -- responsables de dépôt lisent DIM_DRIVER, MART_DRIVER_MONTHLY et DIM_DEPOT ; ANALYSTE lit tout MARTS, tables
--- futures comprises ; tous voient le schéma GOUVERNANCE (USAGE, pour lire V_CATALOGUE au jour 3 par un GRANT
--- nommé sur la vue) ; et rien d'autre : aucun droit futur sur GOUVERNANCE, aucun droit sur RAW ni STAGING,
--- rien que USAGE et SELECT, aucun rôle hérité, aucun droit sur le compte.
+-- futures comprises ; tous voient le schéma GOUVERNANCE (USAGE) et y lisent la vue V_CATALOGUE, par un GRANT nommé
+-- (jour 3, snowflake/rh/catalogue/v_catalogue.sql) ; et rien d'autre : aucune autre vue, aucun droit futur sur
+-- GOUVERNANCE, aucun droit sur RAW ni STAGING, rien que USAGE et SELECT, aucun rôle hérité, aucun droit sur le compte.
 -- Rôle : ACCOUNTADMIN, parce qu'il s'agit de lire des DROITS (SHOW GRANTS), pas des données.
--- Rejouable. Avant 02_roles_metier.sql : erreur « Role 'RH_PAIE' does not exist » (test rouge).
--- C'est bon quand : toutes les lignes affichent statut = OK.
+-- Rejouable. Avant 02_roles_metier.sql : erreur « Role 'RH_PAIE' does not exist » (test rouge). Entre
+-- 02_roles_metier.sql et v_catalogue.sql : 14 OK et 1 KO, la lecture de V_CATALOGUE, qui n'existe pas encore.
+-- C'est bon quand : toutes les lignes affichent statut = OK (15).
 -- Ce que chaque rôle VOIT (lignes, valeurs masquées) est testé à part, dans 04_verif_acces.sql.
 -- =====================================================================
 USE SECONDARY ROLES NONE;
@@ -72,8 +73,16 @@ SHOW GRANTS TO ROLE SYSADMIN                                        -- $8
                (SELECT COUNT(*) FROM droits
                 WHERE privilege = 'USAGE' AND granted_on = 'SCHEMA' AND name = 'NYC_TAXI.GOUVERNANCE')
         UNION ALL
+        SELECT 'Chaque rôle métier : SELECT sur la vue GOUVERNANCE.V_CATALOGUE (4 droits)', 4,
+               (SELECT COUNT(*) FROM droits
+                WHERE privilege = 'SELECT' AND granted_on = 'VIEW' AND name = 'NYC_TAXI.GOUVERNANCE.V_CATALOGUE')
+        UNION ALL
+        SELECT 'Rôles métier : aucune autre vue lisible que V_CATALOGUE', 0,
+               (SELECT COUNT(*) FROM droits
+                WHERE granted_on = 'VIEW' AND name <> 'NYC_TAXI.GOUVERNANCE.V_CATALOGUE')
+        UNION ALL
         -- Un droit futur sur les vues de GOUVERNANCE ouvrirait toute vue créée là demain (audit, qualité) : V_CATALOGUE
-        -- recevra un GRANT nommé au jour 3, par son propriétaire.
+        -- reçoit un GRANT nommé, par son propriétaire.
         SELECT 'Rôles métier : aucun droit futur sur GOUVERNANCE', 0,
                (SELECT COUNT(*) FROM $1
                 WHERE "grantee_name" IN ('RH_PAIE', 'RESP_DEPOT_QUEENS', 'RESP_DEPOT_BRONX', 'ANALYSTE'))
@@ -83,7 +92,7 @@ SHOW GRANTS TO ROLE SYSADMIN                                        -- $8
                (SELECT COUNT(*) FROM droits
                 WHERE name LIKE 'NYC_TAXI.RAW%' OR name LIKE 'NYC_TAXI.STAGING%')
         UNION ALL
-        -- ACCES_DEPOT et QUALITE_RESULTATS restent fermées aux rôles métier (les vues de GOUVERNANCE, elles, sont permises).
+        -- ACCES_DEPOT et QUALITE_RESULTATS restent fermées aux rôles métier.
         SELECT 'Rôles métier : aucun SELECT sur une table hors de MARTS', 0,
                (SELECT COUNT(*) FROM droits
                 WHERE granted_on = 'TABLE' AND name NOT LIKE 'NYC_TAXI.MARTS.%')
