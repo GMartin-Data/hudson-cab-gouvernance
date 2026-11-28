@@ -13,11 +13,12 @@
 -- ACCES_DEPOT qui n'existe pas encore. C'est bon quand : aucun KO dans la sortie, aucune erreur (la CLI écho le
 -- texte des scripts, d'où les espaces autour de KO : ils ne comptent que les cellules de résultat) :
 --   snow sql -c hudson_cab -f snowflake/verif/04_verif_acces.sql | grep -c ' KO '   → 0
--- Valeurs de contrôle, les seules constantes du script : 400 chauffeurs et 914 lignes de mart (brief), 3 dépôts,
--- 161 chauffeurs / 365 lignes de mart pour Queens, 122 / 290 pour le Bronx, D0003 rattaché à Queens (relevé avec
--- TRANSFORMER le 2026-11-24). Elles prouvent qu'un rôle voit TOUT ce qu'il doit voir ; à mettre à jour si la purge
--- R1 (jour 3) retire des chauffeurs. Les contrôles de masquage, eux, sont écrits en absolu (zéro valeur non
--- conforme sur les lignes vues) et ne dépendent d'aucun volume.
+-- Valeurs de contrôle, les seules constantes du script : 354 chauffeurs et 914 lignes de mart, 3 dépôts,
+-- 143 chauffeurs / 365 lignes de mart pour Queens, 106 / 290 pour le Bronx, D0003 rattaché à Queens (relevé avec
+-- TRANSFORMER le 2026-11-28). Elles prouvent qu'un rôle voit TOUT ce qu'il doit voir. Avant la purge R1 du jour 3
+-- (snowflake/rh/purge_rh.sql, 46 chauffeurs échus, aucune ligne de mart), elles valaient 400, 161 et 122 ; la
+-- prochaine échéance R1 tombe le 2028-01-11, elles tiennent jusque-là. Les contrôles de masquage, eux, sont écrits
+-- en absolu (zéro valeur non conforme sur les lignes vues) et ne dépendent d'aucun volume.
 -- Anomalies du fichier qui comptent ici : les e-mails sans @ (règle email_valide, jour 3) doivent sortir en *****
 -- complet, le masque partiel n'ayant pas de domaine à garder ; les téléphones vides doivent sortir en ***** pour
 -- qui ne voit pas la colonne en clair (un masque remplace aussi les NULL) ; driver_name est NULL dans le mart pour
@@ -32,7 +33,7 @@ USE WAREHOUSE NYC_TAXI_WH;
 WITH d AS (SELECT * FROM NYC_TAXI.MARTS.DIM_DRIVER),
      m AS (SELECT * FROM NYC_TAXI.MARTS.MART_DRIVER_MONTHLY),
 attendu AS (
-    SELECT 'RH_PAIE : DIM_DRIVER, tous les chauffeurs' AS verification, 400 AS attendu, (SELECT COUNT(*) FROM d) AS obtenu
+    SELECT 'RH_PAIE : DIM_DRIVER, tous les chauffeurs' AS verification, 354 AS attendu, (SELECT COUNT(*) FROM d) AS obtenu
     UNION ALL SELECT 'RH_PAIE : MART_DRIVER_MONTHLY, toutes les lignes', 914, (SELECT COUNT(*) FROM m)
     UNION ALL SELECT 'RH_PAIE : DIM_DEPOT, les 3 dépôts', 3, (SELECT COUNT(*) FROM NYC_TAXI.MARTS.DIM_DEPOT)
     UNION ALL SELECT 'RH_PAIE : le chauffeur D0003 (Queens) est visible', 1, (SELECT COUNT(*) FROM d WHERE driver_id = 'D0003')
@@ -75,9 +76,9 @@ USE WAREHOUSE NYC_TAXI_WH;
 WITH d AS (SELECT * FROM NYC_TAXI.MARTS.DIM_DRIVER),
      m AS (SELECT * FROM NYC_TAXI.MARTS.MART_DRIVER_MONTHLY),
 attendu AS (
-    SELECT 'RESP_DEPOT_QUEENS : DIM_DRIVER, les chauffeurs de Queens seulement' AS verification, 161 AS attendu, (SELECT COUNT(*) FROM d) AS obtenu
+    SELECT 'RESP_DEPOT_QUEENS : DIM_DRIVER, les chauffeurs de Queens seulement' AS verification, 143 AS attendu, (SELECT COUNT(*) FROM d) AS obtenu
     UNION ALL SELECT 'RESP_DEPOT_QUEENS : un seul dépôt visible', 1, (SELECT COUNT(DISTINCT depot) FROM d)
-    UNION ALL SELECT 'RESP_DEPOT_QUEENS : et c''est Queens', 161, (SELECT COUNT(*) FROM d WHERE depot = 'Queens')
+    UNION ALL SELECT 'RESP_DEPOT_QUEENS : et c''est Queens', 143, (SELECT COUNT(*) FROM d WHERE depot = 'Queens')
     UNION ALL SELECT 'RESP_DEPOT_QUEENS : MART_DRIVER_MONTHLY, les lignes de Queens seulement', 365, (SELECT COUNT(*) FROM m)
     UNION ALL SELECT 'RESP_DEPOT_QUEENS : aucune ligne du mart hors de Queens', 0, (SELECT COUNT(*) FROM m WHERE depot IS DISTINCT FROM 'Queens')
     UNION ALL SELECT 'RESP_DEPOT_QUEENS : DIM_DEPOT sans filtre, les 3 dépôts', 3, (SELECT COUNT(*) FROM NYC_TAXI.MARTS.DIM_DEPOT)
@@ -92,7 +93,7 @@ attendu AS (
               (SELECT COUNT(*) FROM d WHERE birth_date IS NOT NULL)
     UNION ALL SELECT 'RESP_DEPOT_QUEENS : driver_name en clair dans le mart (aucun masque)', 0, (SELECT COUNT(*) FROM m WHERE driver_name = '*****')
     -- Limite connue, documentée dans docs/ACCES.md : le compte de lignes du catalogue est physique, la politique ne le filtre pas.
-    UNION ALL SELECT 'RESP_DEPOT_QUEENS : INFORMATION_SCHEMA.TABLES.row_count de DIM_DRIVER donne le total physique (limite connue)', 400,
+    UNION ALL SELECT 'RESP_DEPOT_QUEENS : INFORMATION_SCHEMA.TABLES.row_count de DIM_DRIVER donne le total physique (limite connue)', 354,
               (SELECT row_count FROM NYC_TAXI.INFORMATION_SCHEMA.TABLES WHERE table_schema = 'MARTS' AND table_name = 'DIM_DRIVER')
 )
 SELECT verification, attendu, obtenu, IFF(obtenu = attendu, 'OK', 'KO') AS statut
@@ -119,8 +120,8 @@ USE WAREHOUSE NYC_TAXI_WH;
 WITH d AS (SELECT * FROM NYC_TAXI.MARTS.DIM_DRIVER),
      m AS (SELECT * FROM NYC_TAXI.MARTS.MART_DRIVER_MONTHLY),
 attendu AS (
-    SELECT 'RESP_DEPOT_BRONX : DIM_DRIVER, les chauffeurs du Bronx seulement' AS verification, 122 AS attendu, (SELECT COUNT(*) FROM d) AS obtenu
-    UNION ALL SELECT 'RESP_DEPOT_BRONX : et c''est le Bronx', 122, (SELECT COUNT(*) FROM d WHERE depot = 'Bronx')
+    SELECT 'RESP_DEPOT_BRONX : DIM_DRIVER, les chauffeurs du Bronx seulement' AS verification, 106 AS attendu, (SELECT COUNT(*) FROM d) AS obtenu
+    UNION ALL SELECT 'RESP_DEPOT_BRONX : et c''est le Bronx', 106, (SELECT COUNT(*) FROM d WHERE depot = 'Bronx')
     UNION ALL SELECT 'RESP_DEPOT_BRONX : MART_DRIVER_MONTHLY, les lignes du Bronx seulement', 290, (SELECT COUNT(*) FROM m)
     UNION ALL SELECT 'RESP_DEPOT_BRONX : aucune ligne du mart hors du Bronx', 0, (SELECT COUNT(*) FROM m WHERE depot IS DISTINCT FROM 'Bronx')
     UNION ALL SELECT 'RESP_DEPOT_BRONX : le chauffeur D0003 (Queens) est invisible', 0, (SELECT COUNT(*) FROM d WHERE driver_id = 'D0003')
@@ -156,7 +157,7 @@ USE WAREHOUSE NYC_TAXI_WH;
 WITH d AS (SELECT * FROM NYC_TAXI.MARTS.DIM_DRIVER),
      m AS (SELECT * FROM NYC_TAXI.MARTS.MART_DRIVER_MONTHLY),
 attendu AS (
-    SELECT 'ANALYSTE : DIM_DRIVER, tous les chauffeurs' AS verification, 400 AS attendu, (SELECT COUNT(*) FROM d) AS obtenu
+    SELECT 'ANALYSTE : DIM_DRIVER, tous les chauffeurs' AS verification, 354 AS attendu, (SELECT COUNT(*) FROM d) AS obtenu
     UNION ALL SELECT 'ANALYSTE : MART_DRIVER_MONTHLY, toutes les lignes', 914, (SELECT COUNT(*) FROM m)
     UNION ALL SELECT 'ANALYSTE : DIM_DEPOT, les 3 dépôts', 3, (SELECT COUNT(*) FROM NYC_TAXI.MARTS.DIM_DEPOT)
     UNION ALL SELECT 'ANALYSTE : driver_id visible, D0003 se retrouve (compter et joindre sans nommer)', 1, (SELECT COUNT(*) FROM d WHERE driver_id = 'D0003')
@@ -200,7 +201,7 @@ USE WAREHOUSE NYC_TAXI_WH;
 WITH d AS (SELECT * FROM NYC_TAXI.MARTS.DIM_DRIVER),
      m AS (SELECT * FROM NYC_TAXI.MARTS.MART_DRIVER_MONTHLY),
 attendu AS (
-    SELECT 'TRANSFORMER : DIM_DRIVER, tous les chauffeurs (ACCES_DEPOT le laisse passer)' AS verification, 400 AS attendu, (SELECT COUNT(*) FROM d) AS obtenu
+    SELECT 'TRANSFORMER : DIM_DRIVER, tous les chauffeurs (ACCES_DEPOT le laisse passer)' AS verification, 354 AS attendu, (SELECT COUNT(*) FROM d) AS obtenu
     UNION ALL SELECT 'TRANSFORMER : MART_DRIVER_MONTHLY, toutes les lignes', 914, (SELECT COUNT(*) FROM m)
     UNION ALL SELECT 'TRANSFORMER : aucune valeur masquée dans DIM_DRIVER', 0,
               (SELECT COUNT(*) FROM d WHERE driver_id = '*****' OR first_name = '*****' OR last_name = '*****'
@@ -245,7 +246,7 @@ SHOW MASKING POLICIES IN SCHEMA NYC_TAXI.GOUVERNANCE                    -- $2
         UNION ALL SELECT 'ACCOUNTADMIN : MART_DRIVER_MONTHLY, aucune ligne', 0, (SELECT COUNT(*) FROM NYC_TAXI.MARTS.MART_DRIVER_MONTHLY)
         UNION ALL SELECT 'ACCOUNTADMIN : DIM_DEPOT, référentiel sans filtre, 3 dépôts', 3, (SELECT COUNT(*) FROM NYC_TAXI.MARTS.DIM_DEPOT)
         -- RAW n'a pas de politique de lignes : les administrateurs voient les lignes (hiérarchie), les colonnes personnelles masquées (contrat, section 4).
-        UNION ALL SELECT 'ACCOUNTADMIN : RAW.DRIVERS, 400 lignes visibles par héritage de TRANSFORMER', 400, (SELECT COUNT(*) FROM NYC_TAXI.RAW.DRIVERS)
+        UNION ALL SELECT 'ACCOUNTADMIN : RAW.DRIVERS, 354 lignes visibles par héritage de TRANSFORMER', 354, (SELECT COUNT(*) FROM NYC_TAXI.RAW.DRIVERS)
         UNION ALL SELECT 'ACCOUNTADMIN : RAW.DRIVERS, rien en clair (driver_id, nom, prénom, licence, téléphone masqués sur toutes les lignes)', 0,
                   (SELECT COUNT(*) FROM NYC_TAXI.RAW.DRIVERS
                    WHERE driver_id IS DISTINCT FROM '*****' OR first_name IS DISTINCT FROM '*****' OR last_name IS DISTINCT FROM '*****'
@@ -296,7 +297,7 @@ WITH attendu AS (
            (SELECT COUNT(*) FROM NYC_TAXI.MARTS.DIM_DRIVER) AS obtenu
     UNION ALL SELECT 'SYSADMIN : MART_DRIVER_MONTHLY, aucune ligne', 0, (SELECT COUNT(*) FROM NYC_TAXI.MARTS.MART_DRIVER_MONTHLY)
     UNION ALL SELECT 'SYSADMIN : DIM_DEPOT, référentiel sans filtre, 3 dépôts', 3, (SELECT COUNT(*) FROM NYC_TAXI.MARTS.DIM_DEPOT)
-    UNION ALL SELECT 'SYSADMIN : RAW.DRIVERS, 400 lignes visibles par héritage de TRANSFORMER', 400, (SELECT COUNT(*) FROM NYC_TAXI.RAW.DRIVERS)
+    UNION ALL SELECT 'SYSADMIN : RAW.DRIVERS, 354 lignes visibles par héritage de TRANSFORMER', 354, (SELECT COUNT(*) FROM NYC_TAXI.RAW.DRIVERS)
     UNION ALL SELECT 'SYSADMIN : RAW.DRIVERS, rien en clair (identifiants, nom, prénom, licence, téléphone, e-mail masqués, dates absentes)', 0,
               (SELECT COUNT(*) FROM NYC_TAXI.RAW.DRIVERS
                WHERE driver_id IS DISTINCT FROM '*****' OR first_name IS DISTINCT FROM '*****' OR last_name IS DISTINCT FROM '*****'
